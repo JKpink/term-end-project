@@ -195,25 +195,27 @@ def train_grpo(config: GRPOTrainingConfig):
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
         )
-        model = AutoModelForCausalLM.from_pretrained(
-            config.model_name,
-            quantization_config=bnb_config,
-            device_map="auto",
-            trust_remote_code=True,
-            attn_implementation="flash_attention_2",
-        )
-        # 如果提供了 SFT adapter，加载它
-        if config.sft_adapter_path and os.path.exists(config.sft_adapter_path):
-            print(f"Loading SFT adapter from {config.sft_adapter_path}")
-            model = PeftModel.from_pretrained(model, config.sft_adapter_path)
-            model = model.merge_and_unload()
-            # 重新量化
+        # T4 用 sdpa，flash_attention_2 不一定有
+        try:
             model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 quantization_config=bnb_config,
                 device_map="auto",
                 trust_remote_code=True,
+                attn_implementation="flash_attention_2",
             )
+        except Exception:
+            model = AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                quantization_config=bnb_config,
+                device_map="auto",
+                trust_remote_code=True,
+                attn_implementation="sdpa",
+            )
+
+        # 加载 SFT adapter（如果提供）
+        if config.sft_adapter_path and os.path.exists(config.sft_adapter_path):
+            print(f"Loading SFT adapter from {config.sft_adapter_path}")
             model = PeftModel.from_pretrained(model, config.sft_adapter_path)
 
         # LoRA 配置
@@ -264,6 +266,9 @@ def train_grpo(config: GRPOTrainingConfig):
         beta=config.kl_coef,  # KL 惩罚系数
         use_vllm=config.use_vllm,
     )
+
+    # 确保 CLI --reward_type 生效（传递到奖励函数内）
+    os.environ["GRPO_REWARD_TYPE"] = config.reward_type
 
     trainer = GRPOTrainer(
         model=model,

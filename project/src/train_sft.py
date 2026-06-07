@@ -23,7 +23,7 @@ from peft import (
     prepare_model_for_kbit_training,
     TaskType,
 )
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from trl import SFTTrainer
 
 
 @dataclass
