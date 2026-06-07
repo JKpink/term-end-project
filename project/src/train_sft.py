@@ -228,27 +228,15 @@ def train_sft(config: SFTConfig):
         remove_unused_columns=False,
     )
 
-    # SFT Trainer (TRL>=0.12 用 processing_class 替代 tokenizer)
-    try:
-        trainer = SFTTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=dataset,
-            processing_class=tokenizer,
-            max_seq_length=config.max_seq_length,
-            dataset_text_field="text",
-            packing=True,
-        )
-    except TypeError:
-        trainer = SFTTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=dataset,
-            tokenizer=tokenizer,
-            max_seq_length=config.max_seq_length,
-            dataset_text_field="text",
-            packing=True,
-        )
+    # SFT Trainer (TRL>=0.12: processing_class 替代 tokenizer, 移除 max_seq_length)
+    trainer = SFTTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset,
+        processing_class=tokenizer,
+        dataset_text_field="text",
+        packing=True,
+    )
 
     print("Starting SFT training...")
     trainer.train()
