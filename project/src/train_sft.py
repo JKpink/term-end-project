@@ -168,13 +168,22 @@ def train_sft(config: SFTConfig):
 
     # 加载模型
     print(f"Loading model: {config.model_name}")
-    model = AutoModelForCausalLM.from_pretrained(
-        config.model_name,
-        quantization_config=bnb_config,
-        device_map="auto",
-        trust_remote_code=True,
-        attn_implementation="flash_attention_2" if config.use_flash_attention else "sdpa",
-    )
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            config.model_name,
+            quantization_config=bnb_config,
+            device_map="auto",
+            trust_remote_code=True,
+            attn_implementation="flash_attention_2" if config.use_flash_attention else "sdpa",
+        )
+    except Exception:
+        model = AutoModelForCausalLM.from_pretrained(
+            config.model_name,
+            quantization_config=bnb_config,
+            device_map="auto",
+            trust_remote_code=True,
+            attn_implementation="sdpa",
+        )
     tokenizer = AutoTokenizer.from_pretrained(
         config.model_name,
         trust_remote_code=True,
