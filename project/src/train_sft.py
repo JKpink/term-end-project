@@ -30,7 +30,7 @@ from trl import SFTTrainer
 class SFTConfig:
     """SFT 训练配置"""
     model_name: str = field(
-        default="Qwen/Qwen3.5-0.8B-Instruct",
+        default="Qwen/Qwen3.5-0.8B",
         metadata={"help": "基座模型名称"}
     )
     dataset_name: str = field(

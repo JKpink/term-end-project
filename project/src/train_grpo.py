@@ -46,7 +46,7 @@ from reward import (
 class GRPOTrainingConfig:
     """GRPO 训练配置"""
     model_name: str = field(
-        default="Qwen/Qwen3.5-0.8B-Instruct",
+        default="Qwen/Qwen3.5-0.8B",
         metadata={"help": "基座模型名称"}
     )
     sft_adapter_path: Optional[str] = field(

@@ -22,8 +22,8 @@ from reward import extract_final_answer, check_thinking_format, count_reasoning_
 
 
 MODEL_TO_HF = {
-    "qwen3.5-0.8b": "Qwen/Qwen3.5-0.8B-Instruct",
-    "qwen3.5-2b": "Qwen/Qwen3.5-2B-Instruct",
+    "qwen3.5-0.8b": "Qwen/Qwen3.5-0.8B",
+    "qwen3.5-1.7b": "Qwen/Qwen3.5-1.7B",
 }
 
 
