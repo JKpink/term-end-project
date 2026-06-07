@@ -228,18 +228,15 @@ def train_sft(config: SFTConfig):
         remove_unused_columns=False,
     )
 
-    # SFT Trainer — 兼容 TRL 各版本 API 变化
-    try:
-        trainer = SFTTrainer(model=model, args=training_args, train_dataset=dataset,
-                             processing_class=tokenizer, packing=True)
-    except TypeError:
-        try:
-            trainer = SFTTrainer(model=model, args=training_args, train_dataset=dataset,
-                                 processing_class=tokenizer, dataset_text_field="text", packing=True)
-        except TypeError:
-            trainer = SFTTrainer(model=model, args=training_args, train_dataset=dataset,
-                                 tokenizer=tokenizer, max_seq_length=config.max_seq_length,
-                                 dataset_text_field="text", packing=True)
+    # SFT Trainer — TRL 最新 API: processing_class + formatting_func
+    # 废弃: tokenizer, packing, dataset_text_field, max_seq_length
+    trainer = SFTTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset,
+        processing_class=tokenizer,
+        formatting_func=lambda x: x["text"],
+    )
 
     print("Starting SFT training...")
     trainer.train()
