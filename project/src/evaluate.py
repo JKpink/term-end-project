@@ -111,8 +111,8 @@ def run_evaluation(model, tokenizer, dataset, args, dataset_name: str) -> Dict:
         # 提取问题和答案
         if "question" in example:
             question = example["question"]
-        elif "problem" in example:
-            question = example["problem"]
+        elif "problem_text" in example:
+            question = example["problem_text"]
         else:
             continue
 

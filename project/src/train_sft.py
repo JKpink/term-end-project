@@ -106,38 +106,26 @@ def format_gsm8k(example: dict) -> dict:
     return {"text": text}
 
 
-def format_scienceqa(example: dict) -> dict:
-    """将 ScienceQA 数据格式化为训练数据"""
-    question = example.get("question", "")
-    hint = example.get("hint", "")
-    choices = example.get("choices", [])
-    answer_idx = example.get("answer", 0)
+def format_scibench(example: dict) -> dict:
+    """将 SciBench 数据格式化为训练数据"""
+    problem = example.get("problem_text", example.get("question", ""))
+    solution = example.get("solution", "")
+    answer = example.get("answer_number", example.get("answer_latex", ""))
+    unit = example.get("unit", "")
 
-    # 构建完整问题
-    full_question = question
-    if hint:
-        full_question = f"提示：{hint}\n问题：{question}"
-    if choices:
-        choice_text = "\n".join(
-            f"{chr(65+i)}. {c}" for i, c in enumerate(choices)
-        )
-        full_question += f"\n选项：\n{choice_text}"
-
-    correct_answer = choices[answer_idx] if choices else str(answer_idx)
+    answer_str = f"{answer} {unit}".strip() if unit else str(answer)
 
     text = f"""<|im_start|>system
 {SYSTEM_PROMPT}<|im_end|>
 <|im_start|>user
-{full_question}<|im_end|>
+{problem}<|im_end|>
 <|im_start|>assistant
 <think>
-1. 审题：{question}
-2. 分析：{hint if hint else '基于已知知识推理'}
-3. 得出结论
+{solution}
 </think>
-答案：{correct_answer}<|im_end|>"""
+答案：{answer_str}<|im_end|>"""
 
-    return {"text"}
+    return {"text": text}
 
 
 def load_and_prepare_data(config: SFTConfig) -> Dataset:
@@ -147,9 +135,15 @@ def load_and_prepare_data(config: SFTConfig) -> Dataset:
     if "gsm8k" in config.dataset_name.lower():
         dataset = load_dataset(config.dataset_name, config.dataset_config, split="train")
         dataset = dataset.map(format_gsm8k, remove_columns=dataset.column_names)
-    elif "scienceqa" in config.dataset_name.lower():
-        dataset = load_dataset(config.dataset_name, split="train")
-        dataset = dataset.map(format_scienceqa, remove_columns=dataset.column_names)
+    elif "scibench" in config.dataset_name.lower() or "xw27" in config.dataset_name:
+        # SciBench: xw27/scibench — 可能没有 train/test 分割
+        try:
+            dataset = load_dataset(config.dataset_name, split="train")
+        except Exception:
+            dataset = load_dataset(config.dataset_name)
+            if isinstance(dataset, dict):
+                dataset = list(dataset.values())[0]
+        dataset = dataset.map(format_scibench, remove_columns=dataset.column_names)
     else:
         # 通用格式：假设有 question 和 answer 列
         dataset = load_dataset(config.dataset_name, config.dataset_config, split="train")
