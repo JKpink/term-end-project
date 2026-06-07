@@ -264,8 +264,11 @@ def train_grpo(config: GRPOTrainingConfig):
         temperature=config.temperature,
         max_prompt_length=config.max_prompt_length,
         beta=config.kl_coef,  # KL 惩罚系数
-        use_vllm=config.use_vllm,
     )
+    # use_vllm 在新版 TRL 中已移除，仅在旧版时设置
+    if config.use_vllm:
+        try: grpo_config.use_vllm = True
+        except Exception: pass
 
     # 确保 CLI --reward_type 生效（传递到奖励函数内）
     os.environ["GRPO_REWARD_TYPE"] = config.reward_type
