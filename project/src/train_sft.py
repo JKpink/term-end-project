@@ -221,7 +221,6 @@ def train_sft(config: SFTConfig):
         save_steps=config.save_steps,
         save_total_limit=2,
         bf16=True,
-        gradient_checkpointing=True,
         optim="paged_adamw_8bit",
         report_to=["tensorboard"],
         ddp_find_unused_parameters=False,
