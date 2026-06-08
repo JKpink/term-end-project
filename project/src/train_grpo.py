@@ -1,6 +1,6 @@
 """
 GRPO 训练脚本 (Kaggle 环境)
-基于 TRL GRPOTrainer，使用 Qwen3.0 + QLoRA 进行 GRPO 强化学习训练
+基于 TRL GRPOTrainer，使用 Qwen3 + QLoRA 进行 GRPO 强化学习训练
 
 参考:
 - nanoRL: https://github.com/ethanhe42/nanoRL
@@ -46,7 +46,7 @@ from reward import (
 class GRPOTrainingConfig:
     """GRPO 训练配置"""
     model_name: str = field(
-        default="Qwen/Qwen3.0-0.6B",
+        default="Qwen/Qwen3-0.6B",
         metadata={"help": "基座模型名称"}
     )
     sft_adapter_path: Optional[str] = field(
@@ -296,7 +296,7 @@ def train_grpo(config: GRPOTrainingConfig):
         per_device_train_batch_size=config.per_device_batch_size,
         gradient_accumulation_steps=config.gradient_accumulation_steps,
         learning_rate=config.learning_rate,
-        bf16=True,
+        fp16=True,
         gradient_checkpointing=True,
         optim="paged_adamw_8bit" if config.use_qlora else "adamw_torch",
         logging_steps=config.logging_steps,

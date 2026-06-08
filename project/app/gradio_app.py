@@ -13,7 +13,7 @@ from peft import PeftModel
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-MODEL_NAME = "Qwen/Qwen3.0-0.6B"
+MODEL_NAME = "Qwen/Qwen3-0.6B"
 ADAPTER_PATH = None  # 设置训练好的 LoRA/GRPO adapter 路径
 
 model = None
@@ -81,7 +81,7 @@ def create_ui():
     with gr.Blocks(title="理科题目求解助手", theme=gr.themes.Soft()) as demo:
         gr.Markdown("""
         # 🔬 理科题目求解助手
-        ### 基于 Qwen3.0 + GRPO 的小模型推理增强
+        ### 基于 Qwen3 + GRPO 的小模型推理增强
 
         输入物理、化学或数学题目，AI 将展示逐步推理过程并给出答案。
         """)
@@ -120,9 +120,9 @@ def create_ui():
         gr.Markdown("""
         ---
         ### 关于本项目
-        本项目使用 **GRPO (Group Relative Policy Optimization)** 算法对 **Qwen3.0** 小模型进行推理能力训练。
+        本项目使用 **GRPO (Group Relative Policy Optimization)** 算法对 **Qwen3** 小模型进行推理能力训练。
 
-        - **模型**: Qwen3.0-0.6B (Apache 2.0)
+        - **模型**: Qwen3-0.6B (Apache 2.0)
         - **方法**: GRPO (DeepSeek-R1 同款算法)
         - **数据集**: GSM8K + SciBench
         """)

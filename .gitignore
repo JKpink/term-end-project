@@ -1,1 +1,5 @@
 .DS_Store
+project/outputs/
+project/models/
+project/__pycache__/
+project/*/__pycache__/

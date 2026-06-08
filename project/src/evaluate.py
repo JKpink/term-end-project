@@ -22,8 +22,8 @@ from reward import extract_final_answer, check_thinking_format, count_reasoning_
 
 
 MODEL_TO_HF = {
-    "qwen3.0-0.6b": "Qwen/Qwen3.0-0.6B",
-    "qwen3.0-1.7b": "Qwen/Qwen3.0-1.7B",
+    "qwen3-0.6b": "Qwen/Qwen3-0.6B",
+    "qwen3-1.7b": "Qwen/Qwen3-1.7B",
 }
 
 
@@ -195,7 +195,7 @@ def run_evaluation(model, tokenizer, dataset, args, dataset_name: str) -> Dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate model reasoning")
-    parser.add_argument("--model_name", type=str, default="qwen3.0-0.6b")
+    parser.add_argument("--model_name", type=str, default="qwen3-0.6b")
     parser.add_argument("--adapter_path", type=str, default=None)
     parser.add_argument("--dataset", type=str, default="gsm8k", choices=["gsm8k", "scibench", "all"])
     parser.add_argument("--enable_thinking", action="store_true", default=True)

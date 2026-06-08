@@ -1,0 +1,58 @@
+# ============================================================
+# 2080Ti × 4 实验配置文件
+# 修改此文件即可调整所有超参数，无需改 Python 源码
+# ============================================================
+
+# ---- 模型 HF ID ----
+models:
+  0.6B: "Qwen/Qwen3-0.6B"
+  1.7B: "Qwen/Qwen3-1.7B"
+  eval_shorthand:
+    0.6B: "qwen3-0.6b"
+    1.7B: "qwen3-1.7b"
+
+# ---- SFT 预热参数 ----
+sft:
+  num_epochs: 2
+  per_device_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  lora_r: 16
+  max_seq_length: 1024
+  max_train_samples: 4000
+  logging_steps: 5
+  save_steps: 200
+
+# ---- GRPO 默认参数（消融实验会在此基础上覆盖） ----
+grpo:
+  num_epochs: 1
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 5.0e-5
+  lora_r: 16
+  num_generations: 8      # Group Size
+  kl_coef: 0.04            # KL 惩罚系数 β
+  max_prompt_length: 512
+  max_completion_length: 1024
+  max_train_samples: 2000
+  logging_steps: 5
+  save_steps: 100
+
+# ---- 消融实验（phase2 先跑并行；phase3 后跑并行） ----
+# 每个实验可覆盖: name, model, gpu, sft, reward, generations, kl, epoch, samples
+ablations:
+  phase2:
+    - {name: "abl_no_sft",            model: "0.6B", gpu: 1, sft: false, reward: "full",               generations: 8,  kl: 0.04}
+    - {name: "abl_correctness_only",  model: "0.6B", gpu: 2, sft: true,  reward: "correctness_only",    generations: 8,  kl: 0.04}
+    - {name: "abl_g4",                model: "0.6B", gpu: 3, sft: true,  reward: "full",                generations: 4,  kl: 0.04}
+  phase3:
+    - {name: "abl_g16",               model: "0.6B", gpu: 0, sft: true,  reward: "full",                generations: 16, kl: 0.04}
+    - {name: "abl_kl001",             model: "0.6B", gpu: 1, sft: true,  reward: "full",                generations: 8,  kl: 0.01}
+    - {name: "abl_kl01",              model: "0.6B", gpu: 2, sft: true,  reward: "full",                generations: 8,  kl: 0.1}
+    - {name: "main_2b",               model: "1.7B", gpu: 3, sft: true,  reward: "full",                generations: 8,  kl: 0.04}
+
+# ---- 评估参数 ----
+evaluate:
+  dataset: "gsm8k"
+  max_samples: 200
+  verbose: false

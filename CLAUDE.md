@@ -6,19 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **dual-purpose** repository for **智能科学综合课程设计五** (Intelligent Science Comprehensive Course Design 5) at **河北师范大学 (Hebei Normal University)**, containing:
 
-1. **A functioning PyTorch project** (`project/`) — GRPO-based reasoning enhancement for Qwen3.0 small models
+1. **A functioning PyTorch project** (`project/`) — GRPO-based reasoning enhancement for Qwen3 small models
 2. **Academic materials** — course admin documents, the DilatedGait reference paper, and submission templates
 
-## Project: GRPO-based Qwen3.0 Reasoning Enhancement
+## Project: GRPO-based Qwen3 Reasoning Enhancement
 
-The project trains **Qwen3.0-0.6B-Instruct** (a Standard Transformer hybrid architecture) to solve science problems (physics, chemistry, math) with step-by-step `<think>` reasoning, using **GRPO (Group Relative Policy Optimization)** — the same RL algorithm behind DeepSeek-R1.
+The project trains **Qwen3-0.6B-Instruct** (a Standard Transformer hybrid architecture) to solve science problems (physics, chemistry, math) with step-by-step `<think>` reasoning, using **GRPO (Group Relative Policy Optimization)** — the same RL algorithm behind DeepSeek-R1.
 
 ### Architecture (two-stage training pipeline)
 
 ```
 Phase 1: SFT warmup           Phase 2: GRPO RL
 ═══════════════════           ═══════════════
-Qwen3.0-0.6B                  SFT adapter (init)
+Qwen3-0.6B                  SFT adapter (init)
   + QLoRA (4-bit)       →       + fresh LoRA
   + GSM8K formatted               + GRPO reward-driven
     (<think>...</think>)            optimization
@@ -38,7 +38,7 @@ Qwen3.0-0.6B                  SFT adapter (init)
 | `project/src/reward.py` | 3 reward strategies, answer extraction, format checking | Exports `REWARD_FUNCTIONS` dict + helpers: `extract_final_answer()`, `is_correct()`, `check_thinking_format()`, `count_reasoning_steps()` |
 | `project/src/train_sft.py` | SFT phase: QLoRA + GSM8K formatted with `<think>` tags | Uses `HfArgumentParser(SFTConfig)`. Formats data via `format_gsm8k()` / `format_scibench()` into `{"text": ...}` |
 | `project/src/train_grpo.py` | GRPO phase: loads SFT adapter, configures `GRPOTrainer` | Imports reward helpers from `reward.py`. Reads `GRPO_REWARD_TYPE` env var at runtime in `grpo_reward_func()` |
-| `project/src/evaluate.py` | Evaluation on GSM8K/SciBench | Model shorthands resolved via `MODEL_TO_HF` dict (only maps `qwen3.0-0.6b` and `qwen3.0-1.7b` — pass full HF path for other models) |
+| `project/src/evaluate.py` | Evaluation on GSM8K/SciBench | Model shorthands resolved via `MODEL_TO_HF` dict (only maps `qwen3-0.6b` and `qwen3-1.7b` — pass full HF path for other models) |
 | `project/app/gradio_app.py` | Gradio web demo | **Requires manual setup:** set `ADAPTER_PATH` (line 17) to your trained adapter path, otherwise it runs the raw base model |
 | `project/prepare.py` | Downloads models/datasets from ModelScope or HuggingFace | Supports `--target all/models/datasets/verify`, `--source modelscope/huggingface`, `--model` filter |
 
@@ -56,6 +56,10 @@ python prepare.py --target verify                      # Check if everything is 
 # Run experiments (pick one environment)
 python run_5060.py all         # RTX 5060 8GB, single-GPU, serial
 python run_local.py all        # RTX 2080Ti x4, multi-GPU parallel via threads
+python run_local.py --experiment sft    # Run only SFT phase
+python run_local.py --experiment grpo   # Run only GRPO phase
+python run_local.py --experiment eval   # Run only evaluation
+python run_local.py --experiment demo   # Launch Gradio demo
 # Or upload project/kaggle_notebook.ipynb for Kaggle T4 x2
 
 # Run individual steps
@@ -65,11 +69,18 @@ python run_5060.py 3           # Step 3: GRPO main experiment
 python run_5060.py 4           # Step 4: ablation experiments (serial)
 python run_5060.py 5           # Step 5: evaluate all baselines
 python run_5060.py 6           # Step 6: launch Gradio demo
+# Named aliases also work:
+python run_5060.py prepare     # same as step 1
+python run_5060.py sft         # same as step 2
+python run_5060.py grpo        # same as step 3
+python run_5060.py ablation    # same as step 4
+python run_5060.py eval        # same as step 5
+python run_5060.py demo        # same as step 6
 
 # Run individual scripts directly
-python src/train_sft.py --model_name Qwen/Qwen3.0-0.6B --output_dir ./outputs/sft
-python src/train_grpo.py --model_name Qwen/Qwen3.0-0.6B --sft_adapter_path ./outputs/sft/final
-python src/evaluate.py --model_name qwen3.0-0.6b --dataset gsm8k --max_samples 200
+python src/train_sft.py --model_name Qwen/Qwen3-0.6B --output_dir ./outputs/sft
+python src/train_grpo.py --model_name Qwen/Qwen3-0.6B --sft_adapter_path ./outputs/sft/final
+python src/evaluate.py --model_name qwen3-0.6b --dataset gsm8k --max_samples 200
 
 # Gradio demo
 python app/gradio_app.py
@@ -80,7 +91,7 @@ python app/gradio_app.py
 **`train_sft.py`** (uses `HfArgumentParser(SFTConfig)`):
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model_name` | `Qwen/Qwen3.0-0.6B` | HF model ID |
+| `--model_name` | `Qwen/Qwen3-0.6B` | HF model ID |
 | `--dataset_name` | `openai/gsm8k` | Training dataset |
 | `--dataset_config` | `main` | Dataset config/subset |
 | `--output_dir` | `/kaggle/working/sft_output` | Output directory |
@@ -98,7 +109,7 @@ python app/gradio_app.py
 **`train_grpo.py`** (uses `HfArgumentParser(GRPOTrainingConfig)`):
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model_name` | `Qwen/Qwen3.0-0.6B` | HF model ID |
+| `--model_name` | `Qwen/Qwen3-0.6B` | HF model ID |
 | `--sft_adapter_path` | None | SFT LoRA adapter path (None = skip warmup) |
 | `--output_dir` | `/kaggle/working/grpo_output` | Output directory |
 | `--reward_type` | `full` | One of: `correctness_only`, `correctness_and_format`, `full` |
@@ -119,7 +130,7 @@ python app/gradio_app.py
 **`evaluate.py`** (uses `argparse`):
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model_name` | `qwen3.0-0.6b` | Shorthand (resolved via `MODEL_TO_HF`) or full HF path |
+| `--model_name` | `qwen3-0.6b` | Shorthand (resolved via `MODEL_TO_HF`) or full HF path |
 | `--adapter_path` | None | LoRA/GRPO adapter path |
 | `--dataset` | `gsm8k` | `gsm8k`, `scibench`, or `all` |
 | `--enable_thinking` | True | Enable `<think>` reasoning mode |
@@ -134,7 +145,7 @@ python app/gradio_app.py
 |------|---------|-------------|
 | `--target` | `all` | `all`, `models`, `datasets`, or `verify` |
 | `--source` | `modelscope` | `modelscope` (国内) or `huggingface` (uses hf-mirror.com) |
-| `--model` | None | Specific model to download (e.g. `qwen3.0-0.6b`) |
+| `--model` | None | Specific model to download (e.g. `qwen3-0.6b`) |
 
 ### Architecture Patterns
 
@@ -150,20 +161,23 @@ python app/gradio_app.py
 
 **Parallelism approach.** `run_local.py` uses `threading.Thread` (not multiprocessing) with `CUDA_VISIBLE_DEVICES` set per-thread to assign different GPUs. GPU-bound threads may contend for the GIL on CPU work, but GPU ops release the GIL so this is acceptable.
 
-**SciBench path duality.** Training loads SciBench from `xw27/scibench`. Evaluation tries `lupantech/SciBench` first, falling back to GSM8K — these are different HF repos. Prepare uses `xw27/scibench`.
+**SciBench path duality.** Training loads SciBench from `xw27/scibench`. Evaluation tries `lupantech/SciBench` first, falling back to the GSM8K **test** split (`openai/gsm8k:main:test`) — these are different HF repos. Prepare uses `xw27/scibench`.
+
+**SYSTEM_PROMPT duplication.** Both `train_sft.py` (line 72) and `train_grpo.py` (line 99) define their own `SYSTEM_PROMPT` module-level constants with slightly different content. If you modify the system prompt, update both files.
 
 ### Gotchas
 
-- **`gradio_app.py`** has `ADAPTER_PATH = None` at line 17 — you **must** change this to your trained adapter path before the demo will use a trained model. Without it, the raw Qwen3.0-0.6B model runs instead.
+- **`gradio_app.py`** has `ADAPTER_PATH = None` at line 17 — you **must** change this to your trained adapter path before the demo will use a trained model. Without it, the raw Qwen3-0.6B model runs instead. You can also change `MODEL_NAME` at line 16 to use a different base model (e.g. `Qwen/Qwen3-1.7B`).
 - **`wandb`** is in `requirements.txt` but training scripts only report to `tensorboard` by default. If you want wandb logging, run `wandb login` first and change `report_to=["tensorboard"]` to include `"wandb"`.
-- **`evaluate.py --model_name`**: accepts shorthand (`qwen3.0-0.6b`, `qwen3.0-1.7b`) resolved via `MODEL_TO_HF`, or any full HuggingFace path. Qwen3.0-1.7B is **not** in the shorthand map — use `Qwen/Qwen3.0-1.7B`.
+- **`evaluate.py --model_name`**: accepts shorthand (`qwen3-0.6b`, `qwen3-1.7b`) resolved via `MODEL_TO_HF`, or any full HuggingFace path. Both shorthands are in the map — use e.g. `qwen3-1.7b` for the 1.7B model.
+- **`evaluate.py` generation params** are hardcoded in `generate()` at line 69–78: `temperature=0.7`, `do_sample=True`, `top_p=0.95`. To change these for evaluation, edit the source directly — there are no CLI flags for them.
 - **`--use_vllm`** in `train_grpo.py`: deprecated in TRL ≥0.15, defaults to `False`. Wrapped in try/except so it won't crash.
 - **bitsandbytes** 4-bit quantization needs a CUDA-compiled build. On Windows, use prebuilt wheels from https://github.com/jllllll/bitsandbytes-windows-webui if needed.
 - **`.gitignore`** only covers `.DS_Store`. Directories like `outputs/`, `models/`, `__pycache__/`, `*.pyc` are not ignored — be careful not to commit large model files or training artifacts.
 
 ### Run scripts: when to use which
 
-- `run_5060.py` — **single GPU ≤8GB**, serial execution, conservative batch/generation configs. Use for development/debugging.
+- `run_5060.py` — **single GPU ≤8GB**, serial execution, conservative batch/generation configs. Use for development/debugging. The `CONFIG` dict at lines 25–49 is the single place to tune all training hyperparameters (batch sizes, LoRA rank, group size, max samples, etc.) for the 8GB setup.
 - `run_local.py` — **4-GPU parallel** via `threading.Thread`, spawns concurrent SFT + GRPO experiments across GPUs. Use for full experiment grid.
 - `kaggle_notebook.ipynb` — **cloud**, Kaggle T4 x2. Mirrors the same training logic in notebook form.
 
