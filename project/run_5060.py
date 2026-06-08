@@ -23,8 +23,8 @@ MODEL_DIR = PROJECT_ROOT / "models"
 
 # RTX 5060 8GB 专用配置 (单卡，显存友好)
 CONFIG = {
-    "model_08b": "Qwen/Qwen3.5-0.8B-Instruct",
-    "model_2b":  "Qwen/Qwen3.5-2B-Instruct",
+    "model_08b": "Qwen/Qwen3.0-0.6B",
+    "model_2b":  "Qwen/Qwen3.0-1.7B",
     "sft": {
         "num_epochs": 2,
         "batch_size": 2,           # 5060 8GB: 保守设 2
@@ -58,7 +58,7 @@ def step1_prepare():
         sys.executable, str(PROJECT_ROOT / "prepare.py"),
         "--target", "all",
         "--source", "modelscope",
-        "--model", "qwen3.5-0.8b",  # 先只下 0.8B
+        "--model", "qwen3.0-0.6b",  # 先只下 0.6B
     ], check=True)
 
 
@@ -67,7 +67,7 @@ def step2_sft():
     print("\n" + "="*60)
     print("STEP 2: SFT 预热训练")
     print(f"  GPU: RTX 5060 8GB")
-    print(f"  Model: Qwen3.5-0.8B QLoRA")
+    print(f"  Model: Qwen3.0-0.6B QLoRA")
     print("="*60)
 
     cfg = CONFIG["sft"]
@@ -176,10 +176,10 @@ def step5_evaluate():
 
     evals = [
         # (label, model, adapter, thinking)
-        ("base_no_think", "qwen3.5-0.8b", None, False),
-        ("base_think",    "qwen3.5-0.8b", None, True),
-        ("sft",           "qwen3.5-0.8b", str(OUTPUT_DIR / "sft_5060" / "final"), True),
-        ("grpo_main",     "qwen3.5-0.8b", str(OUTPUT_DIR / "grpo_5060_main" / "final_grpo" / "final_grpo"), True),
+        ("base_no_think", "qwen3.0-0.6b", None, False),
+        ("base_think",    "qwen3.0-0.6b", None, True),
+        ("sft",           "qwen3.0-0.6b", str(OUTPUT_DIR / "sft_5060" / "final"), True),
+        ("grpo_main",     "qwen3.0-0.6b", str(OUTPUT_DIR / "grpo_5060_main" / "final_grpo" / "final_grpo"), True),
     ]
 
     results = {}

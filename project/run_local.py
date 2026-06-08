@@ -29,7 +29,7 @@ def get_gpu_list():
         return []
 
 
-def run_sft(gpu_id: int = 0, model_size: str = "0.8B"):
+def run_sft(gpu_id: int = 0, model_size: str = "0.6B"):
     """运行 SFT 预热训练"""
     print(f"\n{'='*60}")
     print(f"Step 1: SFT 预热 — GPU {gpu_id}")
@@ -40,7 +40,7 @@ def run_sft(gpu_id: int = 0, model_size: str = "0.8B"):
 
     cmd = [
         sys.executable, str(SRC_DIR / "train_sft.py"),
-        "--model_name", "Qwen/Qwen3.5-0.8B-Instruct" if "0.8" in model_size else "Qwen/Qwen3.5-2B-Instruct",
+        "--model_name", "Qwen/Qwen3.0-0.6B" if "0.8" in model_size else "Qwen/Qwen3.0-1.7B",
         "--output_dir", str(OUTPUT_DIR / f"sft_{model_size.lower()}"),
         "--num_epochs", "2",
         "--per_device_batch_size", "4",
@@ -60,7 +60,7 @@ def run_sft(gpu_id: int = 0, model_size: str = "0.8B"):
 def run_grpo_experiment(
     gpu_id: int,
     name: str,
-    model_size: str = "0.8B",
+    model_size: str = "0.6B",
     sft_adapter: str = None,
     reward_type: str = "full",
     num_generations: int = 8,
@@ -79,7 +79,7 @@ def run_grpo_experiment(
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     env["GRPO_REWARD_TYPE"] = reward_type
 
-    model_name = "Qwen/Qwen3.5-0.8B-Instruct" if "0.8" in model_size else "Qwen/Qwen3.5-2B-Instruct"
+    model_name = "Qwen/Qwen3.0-0.6B" if "0.8" in model_size else "Qwen/Qwen3.0-1.7B"
     output_dir = str(OUTPUT_DIR / f"grpo_{name}")
 
     cmd = [
@@ -118,8 +118,8 @@ def run_all_experiments():
     print("PHASE 1: SFT Warmup")
     print("="*70)
 
-    # 0.8B SFT on GPU 0
-    sft_08b_path = run_sft(gpu_id=0, model_size="0.8B")
+    # 0.6B SFT on GPU 0
+    sft_08b_path = run_sft(gpu_id=0, model_size="0.6B")
 
     # ===== Step 2: GRPO 主实验 + 消融 (4 GPUs 并行) =====
     print("\n" + "="*70)
@@ -131,19 +131,19 @@ def run_all_experiments():
     threads = []
 
     # GPU 0: 主实验 — 完整 GRPO
-    t0 = threading.Thread(target=run_grpo_experiment, args=(0, "main", "0.8B", sft_08b_path, "full", 8, 0.04))
+    t0 = threading.Thread(target=run_grpo_experiment, args=(0, "main", "0.6B", sft_08b_path, "full", 8, 0.04))
     threads.append(t0)
 
     # GPU 1: 消融 A — 无 SFT 预热
-    t1 = threading.Thread(target=run_grpo_experiment, args=(1, "abl_no_sft", "0.8B", None, "full", 8, 0.04))
+    t1 = threading.Thread(target=run_grpo_experiment, args=(1, "abl_no_sft", "0.6B", None, "full", 8, 0.04))
     threads.append(t1)
 
     # GPU 2: 消融 B — 仅正确性奖励
-    t2 = threading.Thread(target=run_grpo_experiment, args=(2, "abl_correctness_only", "0.8B", sft_08b_path, "correctness_only", 8, 0.04))
+    t2 = threading.Thread(target=run_grpo_experiment, args=(2, "abl_correctness_only", "0.6B", sft_08b_path, "correctness_only", 8, 0.04))
     threads.append(t2)
 
     # GPU 3: 消融 C — Group Size 变化 (G=4)
-    t3 = threading.Thread(target=run_grpo_experiment, args=(3, "abl_g4", "0.8B", sft_08b_path, "full", 4, 0.04))
+    t3 = threading.Thread(target=run_grpo_experiment, args=(3, "abl_g4", "0.6B", sft_08b_path, "full", 4, 0.04))
     threads.append(t3)
 
     for t in threads:
@@ -159,20 +159,20 @@ def run_all_experiments():
     threads = []
 
     # GPU 0: 消融 C — G=16
-    t4 = threading.Thread(target=run_grpo_experiment, args=(0, "abl_g16", "0.8B", sft_08b_path, "full", 16, 0.04))
+    t4 = threading.Thread(target=run_grpo_experiment, args=(0, "abl_g16", "0.6B", sft_08b_path, "full", 16, 0.04))
     threads.append(t4)
 
     # GPU 1: 消融 D — KL=0.01
-    t5 = threading.Thread(target=run_grpo_experiment, args=(1, "abl_kl001", "0.8B", sft_08b_path, "full", 8, 0.01))
+    t5 = threading.Thread(target=run_grpo_experiment, args=(1, "abl_kl001", "0.6B", sft_08b_path, "full", 8, 0.01))
     threads.append(t5)
 
     # GPU 2: 消融 D — KL=0.1
-    t6 = threading.Thread(target=run_grpo_experiment, args=(2, "abl_kl01", "0.8B", sft_08b_path, "full", 8, 0.1))
+    t6 = threading.Thread(target=run_grpo_experiment, args=(2, "abl_kl01", "0.6B", sft_08b_path, "full", 8, 0.1))
     threads.append(t6)
 
-    # GPU 3: Baseline ⑤ — 2B + GRPO
-    sft_2b_path = run_sft(gpu_id=3, model_size="2B")
-    t7 = threading.Thread(target=run_grpo_experiment, args=(3, "main_2b", "2B", sft_2b_path, "full", 8, 0.04))
+    # GPU 3: Baseline ⑤ — 1.7B + GRPO
+    sft_2b_path = run_sft(gpu_id=3, model_size="1.7B")
+    t7 = threading.Thread(target=run_grpo_experiment, args=(3, "main_2b", "1.7B", sft_2b_path, "full", 8, 0.04))
     threads.append(t7)
 
     for t in threads:
@@ -192,7 +192,7 @@ def run_eval_only():
     # GPU 0: base model no thinking
     subprocess.run([
         sys.executable, str(SRC_DIR / "evaluate.py"),
-        "--model_name", "qwen3.5-0.8b",
+        "--model_name", "qwen3.0-0.6b",
         "--no_thinking",
         "--dataset", "gsm8k",
         "--max_samples", "200",
@@ -203,7 +203,7 @@ def run_eval_only():
     # GPU 0: base model with thinking
     subprocess.run([
         sys.executable, str(SRC_DIR / "evaluate.py"),
-        "--model_name", "qwen3.5-0.8b",
+        "--model_name", "qwen3.0-0.6b",
         "--enable_thinking",
         "--dataset", "gsm8k",
         "--max_samples", "200",

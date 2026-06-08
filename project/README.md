@@ -1,4 +1,4 @@
-# 基于 GRPO 的 Qwen3.5 小模型理科推理能力增强研究
+# 基于 GRPO 的 Qwen3.0 小模型理科推理能力增强研究
 
 智能科学综合课程设计五 · 课程项目
 
@@ -6,7 +6,7 @@
 
 ## 项目简介
 
-使用 **GRPO（Group Relative Policy Optimization，DeepSeek-R1 同款算法）** 对 **Qwen3.5** 小模型进行推理能力训练，打造一个**理科题目求解助手**——输入物理、化学或数学题，AI 逐步展示推理过程并给出答案。
+使用 **GRPO（Group Relative Policy Optimization，DeepSeek-R1 同款算法）** 对 **Qwen3.0** 小模型进行推理能力训练，打造一个**理科题目求解助手**——输入物理、化学或数学题，AI 逐步展示推理过程并给出答案。
 
 ```
 输入："一个 2kg 的物体从 10m 高处落下，求落地速度（g=10m/s²）"
@@ -79,13 +79,13 @@ python run_5060.py demo     # Step 6: Gradio 演示
 
 ```bash
 # SFT 训练
-python src/train_sft.py --model_name Qwen/Qwen3.5-0.8B-Instruct --output_dir ./outputs/sft
+python src/train_sft.py --model_name Qwen/Qwen3.0-0.6B --output_dir ./outputs/sft
 
 # GRPO 训练
-python src/train_grpo.py --model_name Qwen/Qwen3.5-0.8B-Instruct --sft_adapter_path ./outputs/sft/final
+python src/train_grpo.py --model_name Qwen/Qwen3.0-0.6B --sft_adapter_path ./outputs/sft/final
 
 # 评估
-python src/evaluate.py --model_name qwen3.5-0.8b --dataset gsm8k --max_samples 200
+python src/evaluate.py --model_name qwen3.0-0.6b --dataset gsm8k --max_samples 200
 ```
 
 ---
@@ -96,11 +96,11 @@ python src/evaluate.py --model_name qwen3.5-0.8b --dataset gsm8k --max_samples 2
 
 | 方法 | 说明 |
 |------|------|
-| 基座模型直接回答 | Qwen3.5-0.8B，不开 thinking |
+| 基座模型直接回答 | Qwen3.0-0.6B，不开 thinking |
 | 基座模型 + thinking | 原生 thinking 模式 |
 | QLoRA SFT | 监督微调 |
 | **SFT + GRPO（本文）** | 核心方法 |
-| 2B + SFT + GRPO | 规模对比 |
+| 1.7B + SFT + GRPO | 规模对比 |
 
 ### 消融实验（5 组）
 
@@ -145,8 +145,8 @@ project/
 |------|------|------|
 | 数据集 | GSM8K (7473题) | `openai/gsm8k` (HF) / `swift/gsm8k` (ModelScope) |
 | 数据集 | SciBench (~695题) | `xw27/scibench` (HF) |
-| 模型 | Qwen3.5-0.8B-Instruct | `Qwen/Qwen3.5-0.8B-Instruct` |
-| 模型 | Qwen3.5-2B-Instruct | `Qwen/Qwen3.5-2B-Instruct` |
+| 模型 | Qwen3.0-0.6B-Instruct | `Qwen/Qwen3.0-0.6B` |
+| 模型 | Qwen3.0-1.7B-Instruct | `Qwen/Qwen3.0-1.7B` |
 
 ---
 
@@ -167,7 +167,7 @@ project/
 
 1. DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via RL (2025)
 2. DeepSeekMath: Pushing the Limits of Mathematical Reasoning (2024)
-3. Qwen3.5 Technical Report (2026)
+3. Qwen3.0 Technical Report (2026)
 4. LoRA: Low-Rank Adaptation of Large Language Models (ICLR 2022)
 5. QLoRA: Efficient Finetuning of Quantized LLMs (NeurIPS 2023)
 6. SciBench: Evaluating College-Level Scientific Problem-Solving (ICML 2024)

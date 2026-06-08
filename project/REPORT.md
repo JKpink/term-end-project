@@ -1,4 +1,4 @@
-# 基于 GRPO 的 Qwen3.5 小模型理科推理能力增强研究
+# 基于 GRPO 的 Qwen3.0 小模型理科推理能力增强研究
 
 > 智能科学综合课程设计五 · 项目报告  
 > 河北师范大学 · 计算机与网络安全学院  
@@ -10,7 +10,7 @@
 
 ### 1.1 题目
 
-**基于 GRPO 的 Qwen3.5 小模型理科推理能力增强研究**
+**基于 GRPO 的 Qwen3.0 小模型理科推理能力增强研究**
 
 ### 1.2 案例
 
@@ -19,7 +19,7 @@
 ### 1.3 核心思路
 
 ```
-基座模型 (Qwen3.5-0.8B)
+基座模型 (Qwen3.0-0.6B)
     ↓ SFT 预热 (监督微调，学会推理格式)
     ↓ GRPO 强化学习 (组内对比优化，激发推理能力)
     → 理科推理助手 (小模型也能"思考")
@@ -31,7 +31,7 @@
 |------|------|
 | **案例** | 理科题目求解助手 |
 | **方向** | GRPO 强化学习训练（DeepSeek-R1 同款算法） |
-| **创新点** | Qwen3.5 + GRPO，研究 GatedDeltaNet 混合架构小模型的推理涌现条件 |
+| **创新点** | Qwen3.0 + GRPO，研究 Standard Transformer 混合架构小模型的推理涌现条件 |
 | **Baseline** | 5 组基线 + 5 组消融实验 |
 
 ---
@@ -71,7 +71,7 @@ if 推理步骤 ≥ 3:  reward += 0.1
 
 ```
 Phase 1: SFT 预热
-  Qwen3.5-0.8B + QLoRA (4-bit)
+  Qwen3.0-0.6B + QLoRA (4-bit)
   在 GSM8K 上监督微调，学会 <think> 推理格式
   训练 2 epoch，LoRA r=8~16
 
@@ -96,8 +96,8 @@ Phase 2: GRPO 训练
 
 | 模型 | 参数 | 架构 | 协议 |
 |------|------|------|------|
-| Qwen3.5-0.8B-Instruct | 0.8B | GatedDeltaNet + Attention | Apache 2.0 |
-| Qwen3.5-2B-Instruct | 2B | GatedDeltaNet + Attention | Apache 2.0 |
+| Qwen3.0-0.6B-Instruct | 0.6B | Standard Transformer | Apache 2.0 |
+| Qwen3.0-1.7B-Instruct | 1.7B | Standard Transformer | Apache 2.0 |
 
 ### 3.3 运行环境
 
@@ -113,11 +113,11 @@ Phase 2: GRPO 训练
 
 | # | 方法 | 说明 |
 |---|------|------|
-| ① | Qwen3.5-0.8B 直接回答 | 不开 thinking，不训练 |
-| ② | Qwen3.5-0.8B + thinking on | 原生 thinking 模式 |
-| ③ | Qwen3.5-0.8B + QLoRA SFT | 监督微调 |
-| ④ | **Qwen3.5-0.8B + SFT + GRPO（本文）** | 核心方法 |
-| ⑤ | Qwen3.5-2B + SFT + GRPO | 规模对比 |
+| ① | Qwen3.0-0.6B 直接回答 | 不开 thinking，不训练 |
+| ② | Qwen3.0-0.6B + thinking on | 原生 thinking 模式 |
+| ③ | Qwen3.0-0.6B + QLoRA SFT | 监督微调 |
+| ④ | **Qwen3.0-0.6B + SFT + GRPO（本文）** | 核心方法 |
+| ⑤ | Qwen3.0-1.7B + SFT + GRPO | 规模对比 |
 
 ### 3.5 消融实验（5 组）
 
@@ -140,7 +140,7 @@ Phase 2: GRPO 训练
 ② thinking on                  ██████
 ③ QLoRA SFT                    ████████
 ④ GRPO (本文)                  ██████████████  ← 核心贡献
-⑤ 2B + GRPO                    ██████████████████
+⑤ 1.7B + GRPO                    ██████████████████
 
 消融 A: 无SFT预热 → GRPO       < ④ → SFT 预热必要
 消融 B: 仅正确性奖励            < ④ → 格式奖励有效
@@ -150,10 +150,10 @@ Phase 2: GRPO 训练
 
 ### 预期结论
 
-1. GRPO 能在极小模型（0.8B）上显著激发推理能力
+1. GRPO 能在极小模型（0.6B）上显著激发推理能力
 2. SFT 预热对 GRPO 收敛至关重要
 3. 格式奖励 + 正确性奖励的组合优于纯正确性奖励
-4. Qwen3.5 的 GatedDeltaNet 架构在推理任务上表现出色
+4. Qwen3.0 的 Standard Transformer 架构在推理任务上表现出色
 
 ---
 
@@ -161,7 +161,7 @@ Phase 2: GRPO 训练
 
 1. Shao et al., "DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models", 2024
 2. Guo et al., "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning", 2025
-3. Qwen Team, "Qwen3.5 Technical Report", 2026
+3. Qwen Team, "Qwen3.0 Technical Report", 2026
 4. Hu et al., "LoRA: Low-Rank Adaptation of Large Language Models", ICLR 2022
 5. Dettmers et al., "QLoRA: Efficient Finetuning of Quantized LLMs", NeurIPS 2023
 6. Wang et al., "SciBench: Evaluating College-Level Scientific Problem-Solving Abilities of Large Language Models", ICML 2024
@@ -190,8 +190,8 @@ project/
 ├── app/
 │   └── gradio_app.py          # Gradio Web 演示界面
 ├── models/                    # 本地模型缓存
-│   ├── qwen3.5-0.8b-Instruct/
-│   └── qwen3.5-2b-Instruct/
+│   ├── qwen3.0-0.6b-Instruct/
+│   └── qwen3.0-1.7b-Instruct/
 ├── outputs/                   # 训练输出
 │   ├── sft_*/                 # SFT 适配器
 │   ├── grpo_*/                # GRPO 模型

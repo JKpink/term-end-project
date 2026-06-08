@@ -6,19 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **dual-purpose** repository for **智能科学综合课程设计五** (Intelligent Science Comprehensive Course Design 5) at **河北师范大学 (Hebei Normal University)**, containing:
 
-1. **A functioning PyTorch project** (`project/`) — GRPO-based reasoning enhancement for Qwen3.5 small models
+1. **A functioning PyTorch project** (`project/`) — GRPO-based reasoning enhancement for Qwen3.0 small models
 2. **Academic materials** — course admin documents, the DilatedGait reference paper, and submission templates
 
-## Project: GRPO-based Qwen3.5 Reasoning Enhancement
+## Project: GRPO-based Qwen3.0 Reasoning Enhancement
 
-The project trains **Qwen3.5-0.8B-Instruct** (a GatedDeltaNet + Attention hybrid architecture) to solve science problems (physics, chemistry, math) with step-by-step `<think>` reasoning, using **GRPO (Group Relative Policy Optimization)** — the same RL algorithm behind DeepSeek-R1.
+The project trains **Qwen3.0-0.6B-Instruct** (a Standard Transformer hybrid architecture) to solve science problems (physics, chemistry, math) with step-by-step `<think>` reasoning, using **GRPO (Group Relative Policy Optimization)** — the same RL algorithm behind DeepSeek-R1.
 
 ### Architecture (two-stage training pipeline)
 
 ```
 Phase 1: SFT warmup           Phase 2: GRPO RL
 ═══════════════════           ═══════════════
-Qwen3.5-0.8B                  SFT adapter (init)
+Qwen3.0-0.6B                  SFT adapter (init)
   + QLoRA (4-bit)       →       + fresh LoRA
   + GSM8K formatted               + GRPO reward-driven
     (<think>...</think>)            optimization
@@ -28,7 +28,7 @@ Qwen3.5-0.8B                  SFT adapter (init)
 - **QLoRA** (4-bit nf4 quantization, r=8–16) throughout — both phases fit in 8GB VRAM
 - **Reward function** (`src/reward.py`): 0.7 correctness + 0.2 format + 0.1 step count (3 variants for ablation)
 - **GRPO vs PPO**: no critic/value network needed — advantage estimated via group-normalized comparison, saving ~75% VRAM
-- **Baselines** (5): raw model, native thinking, SFT-only, SFT+GRPO (core), 2B-scale comparison
+- **Baselines** (5): raw model, native thinking, SFT-only, SFT+GRPO (core), 1.7B-scale comparison
 - **Ablations** (5): no SFT warmup, reward type, group size (4/8/16), KL coefficient (0.01/0.04/0.1)
 
 ### Key source files
@@ -38,7 +38,7 @@ Qwen3.5-0.8B                  SFT adapter (init)
 | `project/src/reward.py` | 3 reward strategies, answer extraction, format checking | Exports `REWARD_FUNCTIONS` dict + helpers: `extract_final_answer()`, `is_correct()`, `check_thinking_format()`, `count_reasoning_steps()` |
 | `project/src/train_sft.py` | SFT phase: QLoRA + GSM8K formatted with `<think>` tags | Uses `HfArgumentParser(SFTConfig)`. Formats data via `format_gsm8k()` / `format_scibench()` into `{"text": ...}` |
 | `project/src/train_grpo.py` | GRPO phase: loads SFT adapter, configures `GRPOTrainer` | Imports reward helpers from `reward.py`. Reads `GRPO_REWARD_TYPE` env var at runtime in `grpo_reward_func()` |
-| `project/src/evaluate.py` | Evaluation on GSM8K/SciBench | Model shorthands resolved via `MODEL_TO_HF` dict (only maps `qwen3.5-0.8b` and `qwen3.5-1.7b` — pass full HF path for other models) |
+| `project/src/evaluate.py` | Evaluation on GSM8K/SciBench | Model shorthands resolved via `MODEL_TO_HF` dict (only maps `qwen3.0-0.6b` and `qwen3.0-1.7b` — pass full HF path for other models) |
 | `project/app/gradio_app.py` | Gradio web demo | **Requires manual setup:** set `ADAPTER_PATH` (line 17) to your trained adapter path, otherwise it runs the raw base model |
 | `project/prepare.py` | Downloads models/datasets from ModelScope or HuggingFace | Supports `--target all/models/datasets/verify`, `--source modelscope/huggingface`, `--model` filter |
 
@@ -67,9 +67,9 @@ python run_5060.py 5           # Step 5: evaluate all baselines
 python run_5060.py 6           # Step 6: launch Gradio demo
 
 # Run individual scripts directly
-python src/train_sft.py --model_name Qwen/Qwen3.5-0.8B-Instruct --output_dir ./outputs/sft
-python src/train_grpo.py --model_name Qwen/Qwen3.5-0.8B-Instruct --sft_adapter_path ./outputs/sft/final
-python src/evaluate.py --model_name qwen3.5-0.8b --dataset gsm8k --max_samples 200
+python src/train_sft.py --model_name Qwen/Qwen3.0-0.6B --output_dir ./outputs/sft
+python src/train_grpo.py --model_name Qwen/Qwen3.0-0.6B --sft_adapter_path ./outputs/sft/final
+python src/evaluate.py --model_name qwen3.0-0.6b --dataset gsm8k --max_samples 200
 
 # Gradio demo
 python app/gradio_app.py
@@ -80,7 +80,7 @@ python app/gradio_app.py
 **`train_sft.py`** (uses `HfArgumentParser(SFTConfig)`):
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model_name` | `Qwen/Qwen3.5-0.8B` | HF model ID |
+| `--model_name` | `Qwen/Qwen3.0-0.6B` | HF model ID |
 | `--dataset_name` | `openai/gsm8k` | Training dataset |
 | `--dataset_config` | `main` | Dataset config/subset |
 | `--output_dir` | `/kaggle/working/sft_output` | Output directory |
@@ -98,7 +98,7 @@ python app/gradio_app.py
 **`train_grpo.py`** (uses `HfArgumentParser(GRPOTrainingConfig)`):
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model_name` | `Qwen/Qwen3.5-0.8B` | HF model ID |
+| `--model_name` | `Qwen/Qwen3.0-0.6B` | HF model ID |
 | `--sft_adapter_path` | None | SFT LoRA adapter path (None = skip warmup) |
 | `--output_dir` | `/kaggle/working/grpo_output` | Output directory |
 | `--reward_type` | `full` | One of: `correctness_only`, `correctness_and_format`, `full` |
@@ -119,7 +119,7 @@ python app/gradio_app.py
 **`evaluate.py`** (uses `argparse`):
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model_name` | `qwen3.5-0.8b` | Shorthand (resolved via `MODEL_TO_HF`) or full HF path |
+| `--model_name` | `qwen3.0-0.6b` | Shorthand (resolved via `MODEL_TO_HF`) or full HF path |
 | `--adapter_path` | None | LoRA/GRPO adapter path |
 | `--dataset` | `gsm8k` | `gsm8k`, `scibench`, or `all` |
 | `--enable_thinking` | True | Enable `<think>` reasoning mode |
@@ -134,7 +134,7 @@ python app/gradio_app.py
 |------|---------|-------------|
 | `--target` | `all` | `all`, `models`, `datasets`, or `verify` |
 | `--source` | `modelscope` | `modelscope` (国内) or `huggingface` (uses hf-mirror.com) |
-| `--model` | None | Specific model to download (e.g. `qwen3.5-0.8b`) |
+| `--model` | None | Specific model to download (e.g. `qwen3.0-0.6b`) |
 
 ### Architecture Patterns
 
@@ -154,9 +154,9 @@ python app/gradio_app.py
 
 ### Gotchas
 
-- **`gradio_app.py`** has `ADAPTER_PATH = None` at line 17 — you **must** change this to your trained adapter path before the demo will use a trained model. Without it, the raw Qwen3.5-0.8B model runs instead.
+- **`gradio_app.py`** has `ADAPTER_PATH = None` at line 17 — you **must** change this to your trained adapter path before the demo will use a trained model. Without it, the raw Qwen3.0-0.6B model runs instead.
 - **`wandb`** is in `requirements.txt` but training scripts only report to `tensorboard` by default. If you want wandb logging, run `wandb login` first and change `report_to=["tensorboard"]` to include `"wandb"`.
-- **`evaluate.py --model_name`**: accepts shorthand (`qwen3.5-0.8b`, `qwen3.5-1.7b`) resolved via `MODEL_TO_HF`, or any full HuggingFace path. Qwen3.5-2B is **not** in the shorthand map — use `Qwen/Qwen3.5-2B-Instruct`.
+- **`evaluate.py --model_name`**: accepts shorthand (`qwen3.0-0.6b`, `qwen3.0-1.7b`) resolved via `MODEL_TO_HF`, or any full HuggingFace path. Qwen3.0-1.7B is **not** in the shorthand map — use `Qwen/Qwen3.0-1.7B`.
 - **`--use_vllm`** in `train_grpo.py`: deprecated in TRL ≥0.15, defaults to `False`. Wrapped in try/except so it won't crash.
 - **bitsandbytes** 4-bit quantization needs a CUDA-compiled build. On Windows, use prebuilt wheels from https://github.com/jllllll/bitsandbytes-windows-webui if needed.
 - **`.gitignore`** only covers `.DS_Store`. Directories like `outputs/`, `models/`, `__pycache__/`, `*.pyc` are not ignored — be careful not to commit large model files or training artifacts.

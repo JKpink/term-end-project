@@ -19,8 +19,8 @@ MODELS_DIR = PROJECT_ROOT / "models"
 # ModelScope 资源 ID（国内访问快）
 # ============================================================
 MODELSCOPE_MODELS = {
-    "qwen3.5-0.8b": "Qwen/Qwen3.5-0.8B-Instruct",
-    "qwen3.5-2b":  "Qwen/Qwen3.5-2B-Instruct",
+    "qwen3.0-0.6b": "Qwen/Qwen3.0-0.6B",
+    "qwen3.0-1.7b":  "Qwen/Qwen3.0-1.7B",
 }
 
 MODELSCOPE_DATASETS = {
@@ -103,7 +103,7 @@ def verify_local():
     print("="*60)
 
     # 检查模型
-    for name in ["qwen3.5-0.8b", "qwen3.5-2b"]:
+    for name in ["qwen3.0-0.6b", "qwen3.0-1.7b"]:
         local_path = MODELS_DIR / f"{name}-Instruct"
         if local_path.exists():
             size_gb = sum(f.stat().st_size for f in local_path.rglob("*")) / 1024**3

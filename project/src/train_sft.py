@@ -1,6 +1,6 @@
 """
 SFT 预热训练脚本 (Kaggle 环境)
-使用 QLoRA 对 Qwen3.5-0.8B 进行监督微调，让模型学会推理格式
+使用 QLoRA 对 Qwen3.0-0.6B.8B 进行监督微调，让模型学会推理格式
 """
 
 import os
@@ -30,7 +30,7 @@ from trl import SFTTrainer
 class SFTConfig:
     """SFT 训练配置"""
     model_name: str = field(
-        default="Qwen/Qwen3.5-0.8B",
+        default="Qwen/Qwen3.0-0.6B",
         metadata={"help": "基座模型名称"}
     )
     dataset_name: str = field(
