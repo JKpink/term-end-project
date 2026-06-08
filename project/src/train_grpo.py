@@ -90,6 +90,10 @@ class GRPOTrainingConfig:
     save_steps: int = field(default=100, metadata={"help": "保存间隔"})
     max_train_samples: Optional[int] = field(default=None, metadata={"help": "最大训练样本数"})
     use_vllm: bool = field(default=False, metadata={"help": "是否使用 vLLM 加速推理"})
+    vllm_gpu_memory_utilization: float = field(
+        default=0.4,
+        metadata={"help": "vLLM 显存占用比例 (T4 建议 0.3-0.4，给 QLoRA 训练留空间)"}
+    )
 
 
 SYSTEM_PROMPT = """你是一个理科题目求解助手。请一步步思考，将推理过程写在 <think> 和 </think> 之间，最后给出答案。
@@ -276,6 +280,13 @@ def train_grpo(config: GRPOTrainingConfig):
     # 注意: max_prompt_length 和 temperature 在新版 TRL 中已从 GRPOConfig 移除
     # max_prompt_length 改由 prepare_grpo_dataset() 中用 tokenizer 截断
     # temperature 在 GRPOTrainer 内部使用默认值 1.0
+
+    # vLLM 配置 (新版 TRL 需在构造后设属性)
+    if config.use_vllm:
+        try:
+            grpo_config.vllm_gpu_memory_utilization = config.vllm_gpu_memory_utilization
+        except Exception:
+            pass
 
     # 确保 CLI --reward_type 生效（传递到奖励函数内）
     os.environ["GRPO_REWARD_TYPE"] = config.reward_type
