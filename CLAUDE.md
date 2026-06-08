@@ -33,14 +33,14 @@ Qwen3.5-0.8B                  SFT adapter (init)
 
 ### Key source files
 
-| File | Role |
-|------|------|
-| `project/src/reward.py` | 3 reward strategies (`correctness_only`, `correctness_and_format`, `full`), answer extraction, format checking |
-| `project/src/train_sft.py` | SFT phase: QLoRA + GSM8K formatted with `<think>` tags, uses `HfArgumentParser` for config |
-| `project/src/train_grpo.py` | GRPO phase: loads SFT adapter, configures `GRPOTrainer` with reward function, QLoRA |
-| `project/src/evaluate.py` | Evaluation on GSM8K/SciBench, measures accuracy, thinking-rate, avg reasoning steps |
-| `project/app/gradio_app.py` | Gradio web demo — `solve()` loads model and streams `<think>` reasoning output |
-| `project/prepare.py` | Downloads models/datasets from ModelScope (China access) or HuggingFace (with hf-mirror.com) |
+| File | Role | Notes |
+|------|------|-------|
+| `project/src/reward.py` | 3 reward strategies, answer extraction, format checking | Exports `REWARD_FUNCTIONS` dict + helpers: `extract_final_answer()`, `is_correct()`, `check_thinking_format()`, `count_reasoning_steps()` |
+| `project/src/train_sft.py` | SFT phase: QLoRA + GSM8K formatted with `<think>` tags | Uses `HfArgumentParser(SFTConfig)`. Formats data via `format_gsm8k()` / `format_scibench()` into `{"text": ...}` |
+| `project/src/train_grpo.py` | GRPO phase: loads SFT adapter, configures `GRPOTrainer` | Imports reward helpers from `reward.py`. Reads `GRPO_REWARD_TYPE` env var at runtime in `grpo_reward_func()` |
+| `project/src/evaluate.py` | Evaluation on GSM8K/SciBench | Model shorthands resolved via `MODEL_TO_HF` dict (only maps `qwen3.5-0.8b` and `qwen3.5-1.7b` — pass full HF path for other models) |
+| `project/app/gradio_app.py` | Gradio web demo | **Requires manual setup:** set `ADAPTER_PATH` (line 17) to your trained adapter path, otherwise it runs the raw base model |
+| `project/prepare.py` | Downloads models/datasets from ModelScope or HuggingFace | Supports `--target all/models/datasets/verify`, `--source modelscope/huggingface`, `--model` filter |
 
 ### Common commands
 
@@ -75,6 +75,92 @@ python src/evaluate.py --model_name qwen3.5-0.8b --dataset gsm8k --max_samples 2
 python app/gradio_app.py
 ```
 
+### Script Argument Reference
+
+**`train_sft.py`** (uses `HfArgumentParser(SFTConfig)`):
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model_name` | `Qwen/Qwen3.5-0.8B` | HF model ID |
+| `--dataset_name` | `openai/gsm8k` | Training dataset |
+| `--dataset_config` | `main` | Dataset config/subset |
+| `--output_dir` | `/kaggle/working/sft_output` | Output directory |
+| `--lora_r` | 16 | LoRA rank |
+| `--lora_alpha` | 32 | LoRA alpha |
+| `--lora_dropout` | 0.05 | LoRA dropout |
+| `--num_epochs` | 2 | Training epochs |
+| `--per_device_batch_size` | 4 | Per-GPU batch size |
+| `--gradient_accumulation_steps` | 4 | Gradient accumulation |
+| `--learning_rate` | 2e-4 | Learning rate |
+| `--max_seq_length` | 1024 | Max sequence length |
+| `--max_train_samples` | None | Cap training samples (None=all) |
+| `--use_flash_attention` | True | Use Flash Attention 2 |
+
+**`train_grpo.py`** (uses `HfArgumentParser(GRPOTrainingConfig)`):
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model_name` | `Qwen/Qwen3.5-0.8B` | HF model ID |
+| `--sft_adapter_path` | None | SFT LoRA adapter path (None = skip warmup) |
+| `--output_dir` | `/kaggle/working/grpo_output` | Output directory |
+| `--reward_type` | `full` | One of: `correctness_only`, `correctness_and_format`, `full` |
+| `--use_qlora` | True | Use 4-bit QLoRA |
+| `--lora_r` | 16 | LoRA rank |
+| `--num_generations` | 8 | Group size G (completions per prompt) |
+| `--max_completion_length` | 512 | Max tokens per generated completion |
+| `--temperature` | 1.0 | Sampling temperature |
+| `--kl_coef` | 0.04 | KL penalty coefficient (mapped to `GRPOConfig(beta=...)`) |
+| `--num_train_epochs` | 2 | Training epochs |
+| `--per_device_batch_size` | 2 | Per-GPU batch size |
+| `--gradient_accumulation_steps` | 8 | Gradient accumulation |
+| `--learning_rate` | 5e-5 | Learning rate (GRPO: use lower than SFT) |
+| `--max_prompt_length` | 512 | Max prompt tokens |
+| `--max_train_samples` | None | Cap training samples |
+| `--use_vllm` | False | vLLM acceleration (deprecated in newer TRL) |
+
+**`evaluate.py`** (uses `argparse`):
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model_name` | `qwen3.5-0.8b` | Shorthand (resolved via `MODEL_TO_HF`) or full HF path |
+| `--adapter_path` | None | LoRA/GRPO adapter path |
+| `--dataset` | `gsm8k` | `gsm8k`, `scibench`, or `all` |
+| `--enable_thinking` | True | Enable `<think>` reasoning mode |
+| `--no_thinking` | False | Disable thinking (sets enable_thinking=False) |
+| `--max_samples` | 200 | Number of evaluation samples |
+| `--max_new_tokens` | 1024 | Max generation tokens |
+| `--output_dir` | `./eval_output` | Output for CSVs + JSON metrics |
+| `--verbose` | False | Print first 3 Q&A pairs |
+
+**`prepare.py`** (uses `argparse`):
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--target` | `all` | `all`, `models`, `datasets`, or `verify` |
+| `--source` | `modelscope` | `modelscope` (国内) or `huggingface` (uses hf-mirror.com) |
+| `--model` | None | Specific model to download (e.g. `qwen3.5-0.8b`) |
+
+### Architecture Patterns
+
+**Padding side matters.** SFT training sets `padding_side="right"` (standard for causal LM training — labels align with right-padded tokens). GRPO training sets `padding_side="left"` (required for batch generation — prompts must left-align so generated completions share the same starting position).
+
+**Env var as reward config channel.** `run_local.py` sets `GRPO_REWARD_TYPE` in the subprocess environment before launching `train_grpo.py`. Inside `train_grpo.py`, `grpo_reward_func()` reads `os.environ.get("GRPO_REWARD_TYPE", "full")` to select the reward strategy. The `--reward_type` CLI flag also sets this env var, so direct invocation works too. When modifying reward behavior, check both paths.
+
+**KL coefficient mapping.** The CLI flag is `--kl_coef` (dataclass field), but `GRPOConfig` expects `beta`. The mapping is explicit: `GRPOConfig(beta=config.kl_coef, ...)`.
+
+**SFTTrainer API — post-`c866efd`.** Uses the **newest TRL API**: `processing_class=tokenizer` + `formatting_func=lambda x: x["text"]`. The old parameters (`tokenizer=`, `packing=`, `dataset_text_field=`, `max_seq_length=`) are **deprecated and intentionally removed** — do not add them back. The data is pre-formatted into a `"text"` column before reaching the trainer.
+
+**No gradient checkpointing in SFT.** Removed in commit `ccb1612` — batch sizes are small (1–4) so it provides no memory benefit, only slows training. Do not re-add.
+
+**Parallelism approach.** `run_local.py` uses `threading.Thread` (not multiprocessing) with `CUDA_VISIBLE_DEVICES` set per-thread to assign different GPUs. GPU-bound threads may contend for the GIL on CPU work, but GPU ops release the GIL so this is acceptable.
+
+**SciBench path duality.** Training loads SciBench from `xw27/scibench`. Evaluation tries `lupantech/SciBench` first, falling back to GSM8K — these are different HF repos. Prepare uses `xw27/scibench`.
+
+### Gotchas
+
+- **`gradio_app.py`** has `ADAPTER_PATH = None` at line 17 — you **must** change this to your trained adapter path before the demo will use a trained model. Without it, the raw Qwen3.5-0.8B model runs instead.
+- **`wandb`** is in `requirements.txt` but training scripts only report to `tensorboard` by default. If you want wandb logging, run `wandb login` first and change `report_to=["tensorboard"]` to include `"wandb"`.
+- **`evaluate.py --model_name`**: accepts shorthand (`qwen3.5-0.8b`, `qwen3.5-1.7b`) resolved via `MODEL_TO_HF`, or any full HuggingFace path. Qwen3.5-2B is **not** in the shorthand map — use `Qwen/Qwen3.5-2B-Instruct`.
+- **`--use_vllm`** in `train_grpo.py`: deprecated in TRL ≥0.15, defaults to `False`. Wrapped in try/except so it won't crash.
+- **bitsandbytes** 4-bit quantization needs a CUDA-compiled build. On Windows, use prebuilt wheels from https://github.com/jllllll/bitsandbytes-windows-webui if needed.
+- **`.gitignore`** only covers `.DS_Store`. Directories like `outputs/`, `models/`, `__pycache__/`, `*.pyc` are not ignored — be careful not to commit large model files or training artifacts.
+
 ### Run scripts: when to use which
 
 - `run_5060.py` — **single GPU ≤8GB**, serial execution, conservative batch/generation configs. Use for development/debugging.
@@ -99,18 +185,9 @@ project/outputs/
 ├── sft_*/              # LoRA adapter from Phase 1
 │   └── final/          #  adapter_model.bin, adapter_config.json
 ├── grpo_*/             # GRPO model from Phase 2
-│   └── final_grpo/     #  merged or adapter weights
+│   └── final_grpo/     #  saved via trainer.save_model()
 └── eval_*/             # CSV results + JSON metrics per baseline
 ```
-
-### Reward function design
-
-Three strategies in `src/reward.py`, selectable via `--reward_type`:
-1. `correctness_only` — binary 0/1 for answer match
-2. `correctness_and_format` — 0.8 correct + 0.2 has `<think>` tags
-3. `full` (default) — 0.7 correct + 0.2 format + 0.1 steps ≥ 3
-
-Answer matching supports: exact string, floating-point tolerance (1e-6), substring containment, and `\boxed{}` extraction.
 
 ## Academic Course Materials
 

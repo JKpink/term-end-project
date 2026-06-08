@@ -118,7 +118,7 @@ def format_scibench_grpo(example: dict) -> dict:
     }
 
 
-def prepare_grpo_dataset(config: GRPOTrainingConfig) -> Dataset:
+def prepare_grpo_dataset(config: GRPOTrainingConfig, tokenizer=None) -> Dataset:
     """准备 GRPO 训练数据集，支持 GSM8K 和 SciBench"""
     print(f"Loading dataset: {config.dataset_name}")
 
@@ -156,6 +156,15 @@ def prepare_grpo_dataset(config: GRPOTrainingConfig) -> Dataset:
 
     if config.max_train_samples:
         train_data = train_data.select(range(min(config.max_train_samples, len(train_data))))
+
+    # 新版 TRL 中 max_prompt_length 已从 GRPOConfig 移除，改为在 dataset 中用 tokenizer 截断
+    if tokenizer and config.max_prompt_length:
+        def truncate_prompt(example):
+            tokens = tokenizer.encode(example["prompt"], truncation=True,
+                                       max_length=config.max_prompt_length)
+            example["prompt"] = tokenizer.decode(tokens, skip_special_tokens=False)
+            return example
+        train_data = train_data.map(truncate_prompt)
 
     print(f"Training samples: {len(train_data)}")
     return train_data
@@ -240,8 +249,8 @@ def train_grpo(config: GRPOTrainingConfig):
 
     model.print_trainable_parameters() if hasattr(model, "print_trainable_parameters") else None
 
-    # 准备数据集
-    dataset = prepare_grpo_dataset(config)
+    # 准备数据集（tokenizer 用于 prompt 截断，替代已废弃的 GRPOConfig.max_prompt_length）
+    dataset = prepare_grpo_dataset(config, tokenizer)
 
     # GRPO 训练参数
     grpo_config = GRPOConfig(
@@ -261,14 +270,12 @@ def train_grpo(config: GRPOTrainingConfig):
         # GRPO 特有参数
         num_generations=config.num_generations,
         max_completion_length=config.max_completion_length,
-        temperature=config.temperature,
-        max_prompt_length=config.max_prompt_length,
+        use_vllm=config.use_vllm,
         beta=config.kl_coef,  # KL 惩罚系数
     )
-    # use_vllm 在新版 TRL 中已移除，仅在旧版时设置
-    if config.use_vllm:
-        try: grpo_config.use_vllm = True
-        except Exception: pass
+    # 注意: max_prompt_length 和 temperature 在新版 TRL 中已从 GRPOConfig 移除
+    # max_prompt_length 改由 prepare_grpo_dataset() 中用 tokenizer 截断
+    # temperature 在 GRPOTrainer 内部使用默认值 1.0
 
     # 确保 CLI --reward_type 生效（传递到奖励函数内）
     os.environ["GRPO_REWARD_TYPE"] = config.reward_type
