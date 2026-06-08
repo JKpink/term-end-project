@@ -201,6 +201,12 @@ def train_grpo(config: GRPOTrainingConfig):
         tokenizer.pad_token = tokenizer.eos_token
 
     # 加载模型
+    # vLLM 与 QLoRA 不兼容（PEFT 前缀冲突），vLLM 开启时用 bf16
+    use_vllm_compat = config.use_vllm and config.use_qlora
+    if use_vllm_compat:
+        print("vLLM + QLoRA 不兼容，自动切 bf16（0.6B 模型 A100 完全够）")
+        config.use_qlora = False
+
     if config.use_qlora:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -208,7 +214,6 @@ def train_grpo(config: GRPOTrainingConfig):
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
         )
-        # T4 用 sdpa，flash_attention_2 不一定有
         try:
             model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
@@ -226,7 +231,7 @@ def train_grpo(config: GRPOTrainingConfig):
                 attn_implementation="sdpa",
             )
 
-        # 加载 SFT adapter（如果提供）
+        # 加载 SFT adapter
         if config.sft_adapter_path and os.path.exists(config.sft_adapter_path):
             print(f"Loading SFT adapter from {config.sft_adapter_path}")
             model = PeftModel.from_pretrained(model, config.sft_adapter_path)
@@ -242,14 +247,42 @@ def train_grpo(config: GRPOTrainingConfig):
         model = prepare_model_for_kbit_training(model)
         model = get_peft_model(model, lora_config)
     else:
-        model = AutoModelForCausalLM.from_pretrained(
-            config.model_name,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            trust_remote_code=True,
-        )
+        # bf16 模式（vLLM 兼容或显存充足）
+        try:
+            model = AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto",
+                trust_remote_code=True,
+                attn_implementation="flash_attention_2",
+            )
+        except Exception:
+            model = AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto",
+                trust_remote_code=True,
+                attn_implementation="sdpa",
+            )
+
+        # 加载 SFT adapter 并 merge（vLLM 需要去掉 PEFT 前缀）
         if config.sft_adapter_path and os.path.exists(config.sft_adapter_path):
+            print(f"Loading SFT adapter from {config.sft_adapter_path}")
             model = PeftModel.from_pretrained(model, config.sft_adapter_path)
+            model = model.merge_and_unload()
+            print("SFT adapter merged (for vLLM compat)")
+        # vLLM 模式：全量训练（0.6B bf16 仅 1.2GB），不挂 LoRA
+        if config.use_vllm:
+            model.train()
+        else:
+            lora_config = LoraConfig(
+                r=config.lora_r,
+                lora_alpha=config.lora_alpha,
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                                "gate_proj", "up_proj", "down_proj"],
+                task_type=TaskType.CAUSAL_LM,
+            )
+            model = get_peft_model(model, lora_config)
 
     model.print_trainable_parameters() if hasattr(model, "print_trainable_parameters") else None
 
