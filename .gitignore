@@ -1,4 +1,11 @@
 .DS_Store
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+/project/*__pycache__/
+
+/project/outputs/
 project/outputs/
 project/models/
 project/__pycache__/
